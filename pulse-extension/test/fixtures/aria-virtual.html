@@ -1,0 +1,88 @@
+<!doctype html>
+<!-- TESTPAGINA (simulatie, geen Pulse): ARIA-grid met virtual scrolling (alleen zichtbare
+     rijen in de DOM), vastgezette tijdstipkolom in een apart rij-fragment, aria-colindex,
+     en data die per pagina stil (zonder laadindicator) wordt bijgeladen. -->
+<html><head><meta charset="utf-8"><title>Fixture: virtual grid</title>
+<style>
+  body { font: 13px sans-serif; margin: 0; }
+  .grid { width: 900px; border: 1px solid #999; }
+  .hdr [role=row] { display: flex; height: 26px; }
+  .hdr [role=columnheader] { border: 1px solid #ccc; box-sizing: border-box; padding: 4px; background: #eee; }
+  .sc { height: 400px; overflow-y: auto; position: relative; }
+  .spacer { position: relative; }
+  .left, .center { position: absolute; top: 0; }
+  .left { left: 0; width: 160px; } .center { left: 160px; width: 720px; }
+  .r { position: absolute; left: 0; right: 0; height: 28px; display: flex; }
+  [role=gridcell] { border-bottom: 1px solid #eee; box-sizing: border-box; padding: 4px; width: 120px; overflow: hidden; white-space: nowrap; }
+  .left [role=gridcell] { width: 160px; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; }
+</style></head>
+<body>
+<div class="grid" role="grid" aria-rowcount="502" id="grid">
+  <div class="hdr" role="rowgroup">
+    <div role="row" aria-rowindex="1">
+      <div role="columnheader" style="width:160px"></div>
+      <div role="columnheader" style="width:360px">Energie 8</div>
+      <div role="columnheader" style="width:360px">Energie 9</div>
+    </div>
+    <div role="row" aria-rowindex="2">
+      <div role="columnheader" aria-colindex="1" style="width:160px">Tijdstip</div>
+      <div role="columnheader" aria-colindex="2" style="width:120px">Waarde</div>
+      <div role="columnheader" aria-colindex="3" style="width:120px">Kwaliteit</div>
+      <div role="columnheader" aria-colindex="4" style="width:120px">Status</div>
+      <div role="columnheader" aria-colindex="5" style="width:120px">Waarde</div>
+      <div role="columnheader" aria-colindex="6" style="width:120px">Kwaliteit</div>
+      <div role="columnheader" aria-colindex="7" style="width:120px">Status</div>
+    </div>
+  </div>
+  <div class="sc" id="sc"><div class="spacer" id="spacer"><div class="left" id="left"></div><div class="center" id="center"></div></div></div>
+</div>
+<script>
+const TOTAL = 500, PAGE = 100, DELAY = 900, H = 28;
+const pad = (n) => String(n).padStart(2, '0');
+function time(i) { const d = new Date(Date.UTC(2026, 8, 20, 0, 0) + i * 60 * 60000);
+  return `${pad(d.getUTCDate())}-${pad(d.getUTCMonth() + 1)}-${d.getUTCFullYear()} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`; }
+function status(i, s) {
+  if (i === 10 && s === 1) return ['rgb(229,57,53)', 'Error', ''];
+  if (i === 333 && s === 0) return ['rgb(229,57,53)', '', 'Meetfout'];
+  if (i === 480 && s === 0) return ['rgb(229,57,53)', 'Ongeldig', ''];
+  if (i === 77 && s === 1) return ['rgb(150,150,150)', 'Vervangen', ''];
+  if (i % 13 === 3) return ['rgb(245,150,30)', 'Handm. goedgekeurd', ''];
+  return ['rgb(46,160,67)', 'OK', ''];
+}
+let loaded = PAGE, loading = false;
+const sc = document.getElementById('sc'), left = document.getElementById('left'), center = document.getElementById('center');
+function render() {
+  document.getElementById('spacer').style.height = loaded * H + 'px';
+  const first = Math.max(0, Math.floor(sc.scrollTop / H) - 3);
+  const last = Math.min(loaded - 1, Math.ceil((sc.scrollTop + sc.clientHeight) / H) + 3);
+  left.innerHTML = ''; center.innerHTML = '';
+  for (let i = first; i <= last; i++) {
+    const idx = i + 3;
+    const l = document.createElement('div');
+    l.className = 'r'; l.setAttribute('role', 'row'); l.setAttribute('aria-rowindex', idx); l.style.top = i * H + 'px';
+    l.innerHTML = `<div role="gridcell" aria-colindex="1">${time(i)}</div>`;
+    left.appendChild(l);
+    const c = document.createElement('div');
+    c.className = 'r'; c.setAttribute('role', 'row'); c.setAttribute('aria-rowindex', idx); c.style.top = i * H + 'px';
+    let html = '';
+    for (let s = 0; s < 2; s++) {
+      const [col, t, tip] = status(i, s);
+      html += `<div role="gridcell" aria-colindex="${2 + s * 3}">${(50 + i * 0.25).toFixed(2).replace('.', ',')}</div>` +
+        `<div role="gridcell" aria-colindex="${3 + s * 3}">Gemeten</div>` +
+        `<div role="gridcell" aria-colindex="${4 + s * 3}"><span class="dot" style="background:${col}" ${tip ? `title="${tip}"` : ''}></span>${t}</div>`;
+    }
+    c.innerHTML = html;
+    center.appendChild(c);
+  }
+}
+sc.addEventListener('scroll', () => {
+  render();
+  if (!loading && loaded < TOTAL && sc.scrollTop + sc.clientHeight >= sc.scrollHeight - 5) {
+    loading = true;
+    setTimeout(() => { loaded = Math.min(TOTAL, loaded + PAGE); loading = false; render(); }, DELAY);
+  }
+});
+render();
+</script>
+</body></html>

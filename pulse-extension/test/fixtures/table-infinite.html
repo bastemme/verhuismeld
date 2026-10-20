@@ -1,0 +1,76 @@
+<!doctype html>
+<!-- TESTPAGINA (simulatie, geen Pulse): <table> met groepskoppen (colspan), rijen die pas
+     na scrollen worden bijgeladen met laadindicator. Opties: ?clean=1 (geen fouten),
+     ?stuck=1 (laadindicator blijft onderaan staan), ?empty=1 (lege tabel). -->
+<html><head><meta charset="utf-8"><title>Fixture: tabel met bijladen</title>
+<style>
+  body { font: 13px sans-serif; margin: 0; }
+  .top { height: 80px; background: #ddd; }
+  .wrap { height: 420px; overflow: auto; position: relative; border: 1px solid #999; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { border: 1px solid #ccc; padding: 4px 6px; height: 20px; white-space: nowrap; }
+  thead th { position: sticky; background: #eee; }
+  thead tr:first-child th { top: 0; } thead tr:nth-child(2) th { top: 29px; }
+  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
+  .ok { background: rgb(40,170,80); } .red { background: rgb(220,30,40); } .purple { background: rgb(140,90,220); } .grey { background: #999; }
+  .trash { display: inline-block; width: 12px; height: 12px; background: rgb(230,20,20); border-radius: 50%; }
+  .loading { padding: 8px; text-align: center; }
+</style></head>
+<body>
+<div class="top">Pulse-achtige pagina (testfixture)</div>
+<div class="wrap" id="wrap">
+<table>
+  <thead>
+    <tr><th rowspan="2">Tijdstip</th><th colspan="3">Energie 8</th><th colspan="3">Energie 9</th><th rowspan="2">Acties</th></tr>
+    <tr><th>Waarde</th><th>Kwaliteit</th><th>Status</th><th>Waarde</th><th>Kwaliteit</th><th>Status</th></tr>
+  </thead>
+  <tbody id="tb"></tbody>
+</table>
+<div class="loading" id="spin" style="display:none">Laden...</div>
+</div>
+<script>
+const q = new URLSearchParams(location.search);
+const CLEAN = q.has('clean'), STUCK = q.has('stuck'), EMPTY = q.has('empty');
+const TOTAL = EMPTY ? 0 : 300, PAGE = 60, DELAY = 700;
+const pad = (n) => String(n).padStart(2, '0');
+function time(i) { const d = new Date(Date.UTC(2026, 8, 20, 0, 0) + i * 15 * 60000);
+  return `${pad(d.getUTCDate())}-${pad(d.getUTCMonth() + 1)}-${d.getUTCFullYear()} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`; }
+function status(i, s) {
+  if (!CLEAN) {
+    if (i === 40 && s === 0) return ['red', 'Fout'];
+    if (i === 130 && s === 1) return ['red', ''];
+    if (i === 250 && s === 0) return ['red', 'Rejected'];
+    if (i === 250 && s === 1) return ['red', 'Mislukt'];
+  }
+  if (i === 60 && s === 0) return ['grey', 'Gecorrigeerd'];
+  if (i === 90) return [null, ''];
+  if (i % 17 === 5) return ['purple', 'Handm. goedgekeurd'];
+  return ['ok', 'OK'];
+}
+let loaded = 0, loading = false;
+function addRows(n) {
+  const tb = document.getElementById('tb');
+  for (let k = 0; k < n && loaded < TOTAL; k++, loaded++) {
+    const i = loaded, tr = document.createElement('tr');
+    let html = `<td>${time(i)}</td>`;
+    for (let s = 0; s < 2; s++) {
+      const [c, t] = status(i, s);
+      const val = i === 90 ? '' : (100 + i * 1.5 + s).toFixed(1).replace('.', ',');
+      html += `<td>${val}</td><td>${i === 90 ? '' : 'Gemeten'}</td><td>${c ? `<span class="dot ${c}"></span>` : ''}${t}</td>`;
+    }
+    html += `<td><span class="trash" title="Verwijderen"></span></td>`;
+    tr.innerHTML = html;
+    tb.appendChild(tr);
+  }
+}
+addRows(PAGE);
+const wrap = document.getElementById('wrap');
+wrap.addEventListener('scroll', () => {
+  if (loading || wrap.scrollTop + wrap.clientHeight < wrap.scrollHeight - 50) return;
+  if (loaded >= TOTAL) { if (STUCK) document.getElementById('spin').style.display = 'block'; return; }
+  loading = true;
+  document.getElementById('spin').style.display = 'block';
+  setTimeout(() => { addRows(PAGE); document.getElementById('spin').style.display = 'none'; loading = false; }, DELAY);
+});
+</script>
+</body></html>
